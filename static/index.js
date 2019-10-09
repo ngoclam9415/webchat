@@ -12,7 +12,7 @@ function click_send(){
   var nearest_form = $(this).closest("form");
   var text_input = nearest_form.find("#text_input").val();
   console.log(text_input)
-  ws.send(JSON.stringify({username: name, text:text_input}));
+  ws.send(JSON.stringify({username: name, type: "chat", text:text_input}));
 }
 
 var send_button = $("#send_button");
@@ -29,7 +29,7 @@ fetch(request)
   })
   .then(response => {
     console.log(response)
-    ws.send(JSON.stringify({username: name}));
+    ws.send(JSON.stringify({username: name, type: "join"}));
     console.debug(response);
     // ...
   }).catch(error => {

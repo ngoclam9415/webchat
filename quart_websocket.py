@@ -27,10 +27,13 @@ async def ws():
         if not username in connected_ws:
             print("NEW LOG IN")
             connected_ws.setdefault(username, websocket._get_current_object())
-        else:
+        elif data["type"] == "join":
             print("DUPLICATE SESSION FOR ", username)
             await connected_ws[username].send("Your session is terminated because you account is logged in elsewhere")
             connected_ws[username] = websocket._get_current_object()
+        elif data["type"] == "join":
+            for key, value in connected_ws.items():
+                value.send("Hello {}, i'm {}".format(key, username))
 
         print(str(data))
         await websocket.send('hello'+ username)
@@ -46,8 +49,8 @@ async def insert_user():
         return jsonify({"result" : "Cannot receive username"}), 404
     flag = database.insert_new_user(username)
     if flag:
-        list_users.append(username)
-        list_users.sort()
+        users_list.append(username)
+        users_list.sort()
         return jsonify({"result" : "Successfully", "status": "First time log in"}), 200
     else:
         return jsonify({"result" : "Successfully", "status": "Log in to existed account"}), 200
