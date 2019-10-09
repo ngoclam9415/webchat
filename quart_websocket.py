@@ -54,14 +54,21 @@ async def ws():
             print("NEW LOG IN")
             connected_ws.setdefault(username, websocket._get_current_object())
             for key, value in connected_ws.items():
-                send_data = {"from": username, "to": key, "text":"Hello I'm {}".format(username), "type":"join"}
                 if key == username:
                     continue
+                send_data = {"from": username, "to": key, "text":"Hello I'm {}".format(username), "type":"join"}
+                echo_data = {"from" : key, "to" : username, "text" : "Hello back, I'm {}".format(key), "type":"join"}
+                await connected_ws[username].send(json.dumps(echo_data))
                 await value.send(json.dumps(send_data))
         elif data["type"] == "join":
             print("DUPLICATE SESSION FOR ", username)
             await connected_ws[username].send("Your session is terminated because you account is logged in elsewhere")
             connected_ws[username] = websocket._get_current_object()
+            for key, value in connected_ws.items():
+                if key == username:
+                    continue
+                echo_data = {"from" : key, "to" : username, "text" : "Hello back, I'm {}".format(key), "type":"join"}
+                await connected_ws[username].send(json.dumps(echo_data))
         elif data["type"] == "chat":
             print("{} is chatting ".format(username))
             with_person = data["with_person"]
