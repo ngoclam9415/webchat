@@ -23,11 +23,15 @@ def collect_websocket(func):
             return await func(*args, **kwargs)
         finally:
             connected.remove(websocket._get_current_object())
+            key = None
             for key, value in connected_ws.items():
                 if value == websocket._get_current_object():
                     print("DELETE CONNECTION TO : ",key)
                     del connected_ws[key]
                     break
+            for remaining_key, value in connected_ws.items():
+                send_data = {"from": key, "to": remaining_key, "text":"Goodbye I'm {}".format(key), "type":"quit"}
+                await value.send(json.dumps(send_data))
     return wrapper
 
 
@@ -49,6 +53,11 @@ async def ws():
         if not username in connected_ws:
             print("NEW LOG IN")
             connected_ws.setdefault(username, websocket._get_current_object())
+            for key, value in connected_ws.items():
+                send_data = {"from": username, "to": key, "text":"Hello I'm {}".format(username), "type":"join"}
+                if key == username:
+                    continue
+                await value.send(json.dumps(send_data))
         elif data["type"] == "join":
             print("DUPLICATE SESSION FOR ", username)
             await connected_ws[username].send("Your session is terminated because you account is logged in elsewhere")
@@ -57,7 +66,7 @@ async def ws():
             print("{} is chatting ".format(username))
             with_person = data["with_person"]
             if with_person in connected_ws:
-                send_data = {"from": username, "to": with_person, "text":data["text"]}
+                send_data = {"from": username, "to": with_person, "text":data["text"], "type":"chat"}
                 await connected_ws[with_person].send(json.dumps(send_data))
 
             for key, value in connected_ws.items():

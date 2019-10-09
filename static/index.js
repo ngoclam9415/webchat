@@ -1,6 +1,7 @@
-const name = prompt("Hello, would you mind insert your username ?? ")
-const with_who = prompt("Who do you want to chat with ?? ")
-$("h3.text-center").text(with_who)
+const name = prompt("Hello, would you mind insert your username ?? ");
+const with_who = prompt("Who do you want to chat with ?? ");
+
+$("h3.text-center").text(with_who);
 
 var ip_address = "192.168.1.65:5000"
 
@@ -20,7 +21,6 @@ function click_send(event){
     ws.send(JSON.stringify({username: name, type: "chat", with_person: with_who , text : text_input}));
     $(".msg_history").append(make_outgoing_msg(text_input, "11:01 AM    |    Today"))
     $(".msg_history").scrollTop($(".msg_history").height())
-
   }
 }
 
@@ -52,9 +52,15 @@ ws.onmessage = function (event) {
     try{
         var json_item = JSON.parse(event.data);
         console.log(json_item);
-        var text_input = json_item.text;
-        $(".msg_history").append(make_incoming_msg(text_input, "11:01 AM    |    Today"));
-        $(".msg_history").scrollTop($(".msg_history").height());
+        if (json_item.type === "chat"){
+            var text_input = json_item.text;
+            $(".msg_history").append(make_incoming_msg(text_input, "11:01 AM    |    Today"));
+            $(".msg_history").scrollTop($(".msg_history").height());
+        } else if (json_item.type === "join"){
+            $(".inbox_chat").append(make_inbox_chat(json_item.from, "Online 💚 "))
+        }else if (json_item.type === "quit"){
+            $("#" + json_item.from).find("p").text("Offline 💔")
+        }
     }
     catch(error){
         console.log(item);
@@ -81,12 +87,12 @@ function make_incoming_msg(text, time){
 }
 
 function make_inbox_chat(name, active_status){
-    output = '<div class="chat_list">' + 
+    output = '<div class="chat_list"'+ ' id="'+ name+ '">' + 
                 '<div class="chat_people">' + 
                 '<div class="chat_img"> <img src="https://ptetutorials.com/images/user-profile.png" alt="sunil"> </div>' +
                 '<div class="chat_ib"><h5>' + 
                     name + 
-                    '<span class="chat_date">Dec 25</span></h5>'
+                    '<span class="chat_date">Dec 25</span></h5>' + 
                     '<p>'+active_status+'</p></div></div></div>'
     return output
 }
