@@ -8,6 +8,7 @@ from utils.database import WebChatDatabase
 app = Quart(__name__)
 database =WebChatDatabase("localhost", 27017)
 users_list = database.list_user()
+connected_ws = {}
 print(users_list)
 
 @app.route('/')
@@ -19,8 +20,20 @@ async def hello():
 async def ws():
     while True:
         data = await websocket.receive()
-        print(' Hello world! '+data, file=sys.stderr)
-        await websocket.send('hello'+ data)
+        data = json.loads(data)
+        username = data.get("username", None)
+        print(connected_ws.keys())
+        print(str(connected_ws))
+        if not username in connected_ws:
+            print("NEW LOG IN")
+            connected_ws.setdefault(username, websocket._get_current_object())
+        else:
+            print("DUPLICATE SESSION FOR ", username)
+            await connected_ws[username].send("Your session is terminated because you account is logged in elsewhere")
+            connected_ws[username] = websocket._get_current_object()
+
+        print(str(data))
+        await websocket.send('hello'+ username)
 
 @app.route('/insert_user', methods=["POST"])
 async def insert_user():
@@ -46,6 +59,16 @@ async def list_users():
     print(type(data))
     print(data)
     return jsonify({"list_user": data}), 200
+
+
+@app.route('/show_existed_chat', methods=["POST"])
+async def show_existed_chat():
+    form = await request.data
+    form = json.loads(form)
+    latest = form.get("latest", None)
+    from_time = form.get("from_time", None)
+    to_time = form.get("to_time", None)
+
 
 
 # @app.route('')
