@@ -24,14 +24,17 @@ def collect_websocket(func):
         finally:
             connected.remove(websocket._get_current_object())
             key = None
-            for key, value in connected_ws.items():
-                if value == websocket._get_current_object():
-                    print("DELETE CONNECTION TO : ",key)
-                    del connected_ws[key]
-                    break
-            for remaining_key, value in connected_ws.items():
-                send_data = {"from": key, "to": remaining_key, "text":"Goodbye I'm {}".format(key), "type":"quit"}
-                await value.send(json.dumps(send_data))
+            try:
+                for key, value in connected_ws.items():
+                    if value == websocket._get_current_object():
+                        print("DELETE CONNECTION TO : ",key)
+                        del connected_ws[key]
+                        break
+                for remaining_key, value in connected_ws.items():
+                    send_data = {"from": key, "to": remaining_key, "text":"Goodbye I'm {}".format(key), "type":"quit"}
+                    await value.send(json.dumps(send_data))
+            except RuntimeError:
+                pass
     return wrapper
 
 

@@ -1,12 +1,13 @@
 const name = prompt("Hello, would you mind insert your username ?? ");
-const with_who = prompt("Who do you want to chat with ?? ");
+var with_who = undefined;
 
-$("h3.text-center").text(with_who);
+$("h3.text-center").text("Hello "+name+". Start your conversation now.");
 
 var ip_address = "192.168.1.65:5000"
 
 const url = 'http://' + ip_address + '/insert_user';
 
+$(".mesgs").hide()
 
 const request = new Request(url, {method: 'POST',  body: JSON.stringify({username: name})});
 
@@ -47,6 +48,30 @@ fetch(request)
     console.error(error);
   });
 
+  const get_list_url = 'http://' + ip_address + '/list_users';
+  const get_list_request = new Request(get_list_url, {method: 'GET'});
+  fetch(get_list_request)
+    .then(response => {
+      if (response.status === 200){
+        return response.json();
+      } else {
+        throw new Error("Get list user api error");
+      }
+    })
+    .then(response => {
+      // console.log(response.list_user);
+      var list_users = response.list_user;
+      for (let user of list_users){
+        if (user===name){
+          continue
+        }
+        $(".inbox_chat").append(make_inbox_chat(user, "Offline 💔 "))
+        $("#"+user).on("click dblclick", on_dbclick_to_chat)
+      }
+    }).catch(error =>{
+      console.error(error);
+    });
+
 ws.onmessage = function (event) {
     var item = event.data;
     try{
@@ -57,10 +82,19 @@ ws.onmessage = function (event) {
             $(".msg_history").append(make_incoming_msg(text_input, "11:01 AM    |    Today"));
             $(".msg_history").scrollTop($(".msg_history").height());
         } else if (json_item.type === "join"){
-            $(".inbox_chat").append(make_inbox_chat(json_item.from, "Online 💚 "))
+          $("#" + json_item.from).remove();
+          $(".inbox_chat").append(make_inbox_chat(json_item.from, "Online 💚 "));
+          console.log(json_query_item)
+          var json_query_item = $("#" + json_item.from);
+          if ($(".active_chat").length === 0){
+            json_query_item.prependTo(json_query_item.parent());
+          } else{
+            json_query_item.insertAfter(".active_chat")
+          }
+          json_query_item.on("click dblclick", on_dbclick_to_chat)
         }else if (json_item.type === "quit"){
+            // $("#" + json_item.from).remove()
             $("#" + json_item.from).find("p").text("Offline 💔");
-            $("#" + json_item.from).remove()
         }
     }
     catch(error){
@@ -96,4 +130,17 @@ function make_inbox_chat(name, active_status){
                     '<span class="chat_date">Dec 25</span></h5>' + 
                     '<p>'+active_status+'</p></div></div></div>'
     return output
+}
+
+function on_dbclick_to_chat(){
+  if (with_who === undefined){
+    with_who = $(this).attr('id');
+  } else {
+    $("#"+with_who).removeClass("active_chat");
+    with_who = $(this).attr('id');
+    var current_active_class = $("#"+with_who);
+    current_active_class.addClass("active_chat")
+    current_active_class.prependTo(current_active_class.parent())
+  }
+  $(".mesgs").show()
 }
