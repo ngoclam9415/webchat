@@ -1,5 +1,6 @@
 from __future__ import print_function
 from quart import Quart, websocket, jsonify, request, render_template, make_push_promise, url_for
+from functools import wraps
 import sys
 import ssl
 import json
@@ -9,14 +10,35 @@ app = Quart(__name__)
 database =WebChatDatabase("localhost", 27017)
 users_list = database.list_user()
 connected_ws = {}
+connected = set()
 print(users_list)
+
+def collect_websocket(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        global connected
+        global connected_ws
+        connected.add(websocket._get_current_object())
+        try:
+            return await func(*args, **kwargs)
+        finally:
+            connected.remove(websocket._get_current_object())
+            for key, value in connected_ws.items():
+                if value == websocket._get_current_object():
+                    print("DELETE CONNECTION TO : ",key)
+                    del connected_ws[key]
+                    break
+    return wrapper
+
 
 @app.route('/')
 async def hello():
     await make_push_promise(url_for('static', filename='index.js'))
+    await make_push_promise(url_for('static', filename='index.css'))
     return await render_template("index.html")
     
 @app.websocket('/ws')
+@collect_websocket
 async def ws():
     while True:
         data = await websocket.receive()
@@ -31,15 +53,23 @@ async def ws():
             print("DUPLICATE SESSION FOR ", username)
             await connected_ws[username].send("Your session is terminated because you account is logged in elsewhere")
             connected_ws[username] = websocket._get_current_object()
-        elif data["type"] == "join":
+        elif data["type"] == "chat":
+            print("{} is chatting ".format(username))
+            with_person = data["with_person"]
+            if with_person in connected_ws:
+                send_data = {"from": username, "to": with_person, "text":data["text"]}
+                await connected_ws[with_person].send(json.dumps(send_data))
+
             for key, value in connected_ws.items():
-                value.send("Hello {}, i'm {}".format(key, username))
+                await value.send("Hello {}, i'm {}, {}".format(key, username, data["text"]))
 
         print(str(data))
         await websocket.send('hello'+ username)
+        # await websocket.send(json.dumps(data))
 
 @app.route('/insert_user', methods=["POST"])
 async def insert_user():
+    # print("header : ",request.headers)
     form = await request.data
     print("form = ", form)
     form = json.loads(form)
@@ -87,4 +117,4 @@ if __name__ == "__main__":
         certfile='cert.pem', keyfile='key.pem',
     )
     ssl_context.set_alpn_protocols(['h2', 'http/1.1'])
-    app.run(host='localhost', port=5000, ssl=ssl_context)
+    app.run(host='0.0.0.0', port=5000, ssl=ssl_context)
