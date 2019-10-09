@@ -59,7 +59,8 @@ ws.onmessage = function (event) {
         } else if (json_item.type === "join"){
             $(".inbox_chat").append(make_inbox_chat(json_item.from, "Online 💚 "))
         }else if (json_item.type === "quit"){
-            $("#" + json_item.from).find("p").text("Offline 💔")
+            $("#" + json_item.from).find("p").text("Offline 💔");
+            $("#" + json_item.from).remove()
         }
     }
     catch(error){
