@@ -22,4 +22,4 @@ then to run,
 
 .. code-block::
 
-    $ python quart_websocket
+    $ python quart_websocket # REMEMBER TO CONFIG MONGO TO 0.0.0.0

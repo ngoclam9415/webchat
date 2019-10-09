@@ -7,6 +7,8 @@ from utils.database import WebChatDatabase
 
 app = Quart(__name__)
 database =WebChatDatabase("localhost", 27017)
+users_list = database.list_user()
+print(users_list)
 
 @app.route('/')
 async def hello():
@@ -31,6 +33,8 @@ async def insert_user():
         return jsonify({"result" : "Cannot receive username"}), 404
     flag = database.insert_new_user(username)
     if flag:
+        list_users.append(username)
+        list_users.sort()
         return jsonify({"result" : "Successfully", "status": "First time log in"}), 200
     else:
         return jsonify({"result" : "Successfully", "status": "Log in to existed account"}), 200
@@ -38,7 +42,11 @@ async def insert_user():
 
 @app.route('/list_users', methods=["GET"])
 async def list_users():
-    
+    data = users_list
+    print(type(data))
+    print(data)
+    return jsonify({"list_user": data}), 200
+
 
 # @app.route('')
     

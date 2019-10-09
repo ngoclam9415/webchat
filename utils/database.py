@@ -18,6 +18,14 @@ class WebChatDatabase:
         # => we return false because we 're not success in inserting item
         return not return_result["updatedExisting"]
 
+    def list_user(self):
+        data = []
+        cursors = self.user_collection.find({})
+        for cursor in cursors:
+            data.append(cursor["username"])
+        data.sort()
+        return data
+
 if __name__ == "__main__":
     DB = WebChatDatabase('localhost', 27017)
     DB.insert_new_user("Lam")
