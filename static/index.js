@@ -21,6 +21,12 @@ class Storing_messages {
     this.member[partner_name].text.push(text);
     this.member[partner_name].time.push(time)
   }
+
+  check_history_available(partner_name){
+    console.log("PARTNER_NAME : "+partner_name)
+    console.log(this.member[partner_name])
+    return this.member[partner_name].receive.length > 0
+  }
 }
 
 var message_storage = new Storing_messages(name);
@@ -97,6 +103,7 @@ fetch(request)
         }
         var string_time = new Date(list_times[index]);
         var timestring = string_time.toDateString();
+        $("#" + list_users[index]).remove();
         $(".inbox_chat").append(make_inbox_chat(list_users[index], "Offline 💔 ", time=timestring));
         message_storage.add_partner(list_users[index])
         $("#"+list_users[index]).on("click dblclick", on_dbclick_to_chat);
@@ -113,10 +120,13 @@ ws.onmessage = function (event) {
         if (json_item.type === "chat"){
             var text_input = json_item.text;
             var time = right_now.getHours()+":"+right_now.getMinutes()+'\t'+'|\t'+ right_now.toDateString()
+            if (!message_storage.check_history_available(partner_name=json_item.from)){
+              get_history_chat(username=name, with_person=json_item.from, from_time=0, to_time=right_now.getTime(), limit=20)
+            }
             if (json_item.from === with_who){
               $(".msg_history").append(make_incoming_msg(text_input, time));
             }
-            message_storage.add_messages(partner_name=json_item.from, receive=false, text=text_input, time=right_now.getTime())
+            message_storage.add_messages(partner_name=json_item.from, receive=true, text=text_input, time=right_now.getTime())
             $(".msg_history").scrollTop($(".msg_history").height());
         } else if (json_item.type === "join"){
           var current_time = new Date(json_item.time);
@@ -136,9 +146,12 @@ ws.onmessage = function (event) {
             // $("#" + json_item.from).remove()
             var current_time = new Date(json_item.time);
             var timestring = current_time.toDateString();
-            console.log(timestring)
-            $("#" + json_item.from).find("p").text("Offline 💔");
-            $("#" + json_item.from).find(".chat_date").text(timestring);
+            $("#" + json_item.from).remove();
+            $(".inbox_chat").append(make_inbox_chat(json_item.from, "Offline 💔", time=timestring));
+
+            // console.log(timestring)
+            // $("#" + json_item.from).find("p").text("Offline 💔");
+            // $("#" + json_item.from).find(".chat_date").text(timestring);
         }
     }
     catch(error){
@@ -178,6 +191,7 @@ function make_inbox_chat(name, active_status, time="Dec 25"){
 
 function on_dbclick_to_chat(){
   with_who = $(this).attr('id');
+  console.log("with_who in dbclick : "+with_who)
   $(".active_chat").removeClass("active_chat");
   if (with_who === undefined){
   } else {
@@ -188,17 +202,23 @@ function on_dbclick_to_chat(){
     current_active_class.prependTo(current_active_class.parent())
   }
   // message_storage.add_partner(with_who)
+  if (!message_storage.check_history_available(partner_name=with_who)){
+    get_history_chat(username=name, with_person=with_who, from_time=0, to_time=right_now.getTime(), limit=20)
+  }
   $(".msg_history").empty()
   if (message_storage.member[with_who].receive.length > 0){
     console.log("BAY VO DAY ROI NE")
     for (let index in message_storage.member[with_who].receive){
-      if (message_storage.member[with_who].receive === true){
+      if (message_storage.member[with_who].receive[index] === true){
+        console.log("IMCOMING MESSAGE : "+ message_storage.member[with_who].text[index])
         $(".msg_history").append(make_incoming_msg(message_storage.member[with_who].text[index], get_chat_time(message_storage.member[with_who].time[index])));
       } else{
+        console.log("OUTGOING MESSAGE : "+ message_storage.member[with_who].text[index])
         $(".msg_history").append(make_outgoing_msg(message_storage.member[with_who].text[index], get_chat_time(message_storage.member[with_who].time[index])));
       }
     }
   }
+  $(".msg_history").scrollTop($(".msg_history").height())
   $(".mesgs").show()
 }
 
@@ -209,3 +229,26 @@ function get_chat_time(timestamp){
   var return_time = time.getHours()+":"+time.getMinutes()+'\t'+'|\t'+ time.toDateString();
   return return_time
 }
+
+function get_history_chat(username, with_person, from_time, to_time, limit){
+  const request = new Request("http://"+ip_address+"/show_existed_chat", {method: 'POST',  body: JSON.stringify({username: name , from_time: from_time, to_time: to_time, limit: limit, username : username, with_person: with_person})});
+  fetch(request)
+    .then(response => {
+      if (response.status === 200) {
+        // console.alert(response)
+        return response.json();
+      } else {
+        throw new Error('Something went wrong on api server!');
+      }
+    })
+    .then(response => {
+      console.log(response)
+      for (let index in response.receive){
+        message_storage.add_messages(partner_name=with_person, receive=response.receive[index], text=response.text[index], time=response.time[index])
+      console.debug(response);
+      // ...
+      }
+    }).catch(error => {
+      console.error(error);
+    });
+  }

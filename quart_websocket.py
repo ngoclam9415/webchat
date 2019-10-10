@@ -32,6 +32,8 @@ def collect_websocket(func):
                         del connected_ws[key]
                         break
                 for remaining_key, value in connected_ws.items():
+                    if remaining_key == key:
+                        continue
                     send_data = {"from": key, "to": remaining_key, "text":"Goodbye I'm {}".format(key), "type":"quit", "time": int(time.time()*1000)}
                     flag = database.insert_new_user(key, int(time.time()*1000))
                     await value.send(json.dumps(send_data))
@@ -81,9 +83,14 @@ async def ws():
             if with_person in connected_ws:
                 send_data = {"from": username, "to": with_person, "text":data["text"], "type":"chat", "time":data["time"]}
                 await connected_ws[with_person].send(json.dumps(send_data))
+                conversation_id, first_name = database.generate_conversation_id(username, with_person)
+                save_data = {"conversation_id":conversation_id, "text":data["text"], "firstname" : first_name, "from": username, "to":with_person, "time":data["time"]}
+                database.save_single_message(**save_data)
 
             for key, value in connected_ws.items():
                 await value.send("Hello {}, i'm {}, {}".format(key, username, data["text"]))
+
+            
 
         print(str(data))
         await websocket.send('hello'+ username)
@@ -121,11 +128,18 @@ async def list_users():
 async def show_existed_chat():
     form = await request.data
     form = json.loads(form)
-    latest = form.get("latest", None)
-    from_time = form.get("from_time", None)
-    to_time = form.get("to_time", None)
+    print(form)
+    from_time = form.get("from_time", 0)
+    to_time = form.get("to_time", int(time.time()*1000))
+    username = form.get("username")
+    with_person = form.get("with_person")
+    limit = form.get("limit", 20)
+    conversation_id,  firstname = database.generate_conversation_id(username, with_person)
+    query_input = {"from_time" : from_time, "to_time" : to_time, "username": username, "conversation_id": conversation_id, "firstname" : firstname, "limit" : limit}
+    receive, times, text = database.query_messages(**query_input)
+    return jsonify({"receive" : receive, "time": times, "text": text})
 
-
+print(time.time())
 
 # @app.route('')
     

@@ -37,18 +37,56 @@ class WebChatDatabase:
     def generate_conversation_id(self, user1, user2):
         data = [user1, user2]
         data.sort()
-        conversation_name = ''.join()
+        conversation_name = ''.join(data)
         save_data = {"conversation_id": conversation_name, "first_name": data[0]}
         # return_result = self.user_collection.update(save_data, {"$setOnInsert" : save_data}, upsert=True)
-        return conversation_name
+        return conversation_name, data[0]
 
-    def save_chat(self, list_of_document):
-        "Document type : {'conversation_id': 'LamDuc', 'text':'hehe' , 'firstname':'Lam','from':'Duc', 'time':121212121}"
-        self.chat_collection.insert_many(list_of_document)
+    # def save_chat(self, list_of_document):
+    #     "Document type : {'conversation_id': 'LamDuc', 'text':'hehe' , 'firstname':'Lam','from':'Duc', 'time':121212121}"
+    #     self.chat_collection.insert_many(list_of_document)
+
+    def save_single_message(self, **kwargs):
+        self.chatdb[kwargs["conversation_id"]].insert({
+            "text" : kwargs["text"],
+            "firstname" : kwargs["firstname"],
+            "from" : kwargs["from"],
+            "to" : kwargs["to"],
+            "time" : kwargs["time"]
+        })
+
+    def query_messages(self, **kwargs):
+        username = kwargs["username"]
+        firstname = kwargs["firstname"]
+        from_time = kwargs["from_time"]
+        to_time = kwargs.get("to_time", int(time.time()*1000))
+        conversation_id = kwargs["conversation_id"]
+        print(conversation_id)
+        limit = kwargs.get("limit", 20)
+        cursors = self.chatdb[conversation_id].find({"time" : {"$gte" : from_time, "$lte" : to_time}, "firstname" : firstname}).sort("time", 1).limit(limit)
+        # cursors = self.chatdb[conversation_id].find({})
+        receive = []
+        times = []
+        text = []
+        for cursor in cursors:
+            # print(dict(cursor))
+            if cursor["from"] == username:
+                receive.append(False)
+            else:
+                receive.append(True)
+            text.append(cursor["text"])
+            times.append(cursor["time"])
+        return receive, times, text
+
+
                 
+    
     
 
 if __name__ == "__main__":
     DB = WebChatDatabase('localhost', 27017)
     DB.insert_new_user("Lam")
+    query_input = {"from_time" : 20, "to_time" : int(time.time()*1000), "username": "Lam", "conversation_id": "DatLam", "firstname" : "Dat"}
+    output = DB.query_messages(**query_input)
+    print(output)
 
