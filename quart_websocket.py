@@ -5,10 +5,11 @@ import sys
 import ssl
 import json
 from utils.database import WebChatDatabase
+import time
 
 app = Quart(__name__)
 database =WebChatDatabase("localhost", 27017)
-users_list = database.list_user()
+users_list, time_list = database.list_user()
 connected_ws = {}
 connected = set()
 print(users_list)
@@ -31,7 +32,8 @@ def collect_websocket(func):
                         del connected_ws[key]
                         break
                 for remaining_key, value in connected_ws.items():
-                    send_data = {"from": key, "to": remaining_key, "text":"Goodbye I'm {}".format(key), "type":"quit"}
+                    send_data = {"from": key, "to": remaining_key, "text":"Goodbye I'm {}".format(key), "type":"quit", "time": int(time.time()*1000)}
+                    flag = database.insert_new_user(key, int(time.time()*1000))
                     await value.send(json.dumps(send_data))
             except RuntimeError:
                 pass
@@ -59,24 +61,25 @@ async def ws():
             for key, value in connected_ws.items():
                 if key == username:
                     continue
-                send_data = {"from": username, "to": key, "text":"Hello I'm {}".format(username), "type":"join"}
-                echo_data = {"from" : key, "to" : username, "text" : "Hello back, I'm {}".format(key), "type":"join"}
+                send_data = {"from": username, "to": key, "text":"Hello I'm {}".format(username), "type":"join", "time":int(time.time()*1000)}
+                echo_data = {"from" : key, "to" : username, "text" : "Hello back, I'm {}".format(key), "type":"join", "time": int(time.time()*1000)}
                 await connected_ws[username].send(json.dumps(echo_data))
                 await value.send(json.dumps(send_data))
         elif data["type"] == "join":
             print("DUPLICATE SESSION FOR ", username)
             await connected_ws[username].send("Your session is terminated because you account is logged in elsewhere")
+            current_time = data.get("time", 0)
             connected_ws[username] = websocket._get_current_object()
             for key, value in connected_ws.items():
                 if key == username:
                     continue
-                echo_data = {"from" : key, "to" : username, "text" : "Hello back, I'm {}".format(key), "type":"join"}
+                echo_data = {"from" : key, "to" : username, "text" : "Hello back, I'm {}".format(key), "type":"join", "time" : current_time}
                 await connected_ws[username].send(json.dumps(echo_data))
         elif data["type"] == "chat":
             print("{} is chatting ".format(username))
             with_person = data["with_person"]
             if with_person in connected_ws:
-                send_data = {"from": username, "to": with_person, "text":data["text"], "type":"chat"}
+                send_data = {"from": username, "to": with_person, "text":data["text"], "type":"chat", "time":data["time"]}
                 await connected_ws[with_person].send(json.dumps(send_data))
 
             for key, value in connected_ws.items():
@@ -93,10 +96,11 @@ async def insert_user():
     print("form = ", form)
     form = json.loads(form)
     username = form.get("username", None)
+    login_time = form.get("time", 0)
     print(username)
     if username is None:
         return jsonify({"result" : "Cannot receive username"}), 404
-    flag = database.insert_new_user(username)
+    flag = database.insert_new_user(username, login_time)
     if flag:
         users_list.append(username)
         users_list.sort()
@@ -110,7 +114,7 @@ async def list_users():
     data = users_list
     print(type(data))
     print(data)
-    return jsonify({"list_user": data}), 200
+    return jsonify({"list_user": data, "list_time":time_list}), 200
 
 
 @app.route('/show_existed_chat', methods=["POST"])
