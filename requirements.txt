@@ -35,7 +35,7 @@ Quart-CORS==0.2.0
 six==1.12.0
 sortedcontainers==2.1.0
 toml==0.10.0
-Twisted==19.7.0
+Twisted==22.2.0
 typing-extensions==3.7.4
 Werkzeug==0.16.0
 wsproto==0.15.0
