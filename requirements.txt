@@ -3,7 +3,7 @@ asn1crypto==1.0.1
 attrs==19.2.0
 Automat==0.7.0
 blinker==1.4
-certifi==2019.9.11
+certifi==2022.12.7
 cffi==1.12.3
 Click==7.0
 constantly==15.1.0
